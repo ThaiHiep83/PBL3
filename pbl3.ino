@@ -1,9 +1,3 @@
-//Tech Trends Shameer
-//Home Automation Using ESP Rainmaker
-
-//Board URL: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-
-
 #include "RMaker.h"
 #include "WiFi.h"
 #include "WiFiProv.h"
