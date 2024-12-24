@@ -24,7 +24,7 @@ char device3[] = "Switch3";
 static uint8_t RELAY_1 = 6;  //D6
 static uint8_t RELAY_2 = 2;
 static uint8_t RELAY_3 = 4;
-static uint8_t DHTPIN = 5;
+static uint8_t DHTPIN = 9;
 //---------------------------------------------------
 
 bool wifi_connected = 0;
@@ -184,7 +184,7 @@ void setup(){
   //------------------------------------------------------------------------------
   //This is optional 
   RMaker.enableOTA(OTA_USING_PARAMS);
-  RMaker.enableTZService();
+  RMaker.setTimeZone("Asia/Ho_Chi_Minh");
   //If you want to enable scheduling, set time zone for your region using setTimeZone(). 
   //The list of available values are provided here https://rainmaker.espressif.com/docs/time-service.html
   // RMaker.setTimeZone("Asia/Shanghai");
