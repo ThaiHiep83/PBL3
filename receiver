@@ -5,9 +5,12 @@
 // Pin used in ESP32, GPIO18 and GPIO19
 #define LORA_RX 5
 #define LORA_TX 19
+#define soil_moistrure_pin 34
+
 
 int LED = 26;
 int LED2 = 25;
+int LED3 = 14;
 
 
 SoftwareSerial LoRaSerial(LORA_RX, LORA_TX);
@@ -40,20 +43,23 @@ void setup() {
 
   pinMode(LED2, OUTPUT); 
 
+  pinMode(LED3, OUTPUT);
+
   Serial.println("ESP32 and LoRa AS32 are Ready!");
 }
 
 void loop() {
   Readsensor_DHT();
-
   Led();
 }
-
 // Đọc cảm biến DHT11
 void Readsensor_DHT() {
-   unsigned long currentMillis = millis();
+  int doc_cambien = analogRead(soil_moistrure_pin);
+  int phantram = map(doc_cambien,0,4095,0,100);
+  unsigned long currentMillis = millis();
   float h1 = dht.readHumidity();
   float t1 = dht.readTemperature();
+  float phantramthuc = 100 - phantram;
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
     if (!isnan(h1) && !isnan(t1)) {
@@ -62,10 +68,15 @@ void Readsensor_DHT() {
       Serial.print(" °C | Độ ẩm: ");
       Serial.print(h1);
       Serial.println(" %");
+      Serial.print("Độ ẩm đất: ");
+      Serial.print(phantramthuc); 
+      Serial.println("%");
       LoRaSerial.print("t1: ");
       LoRaSerial.print(t1);
       LoRaSerial.print("h1: ");
       LoRaSerial.print(h1);
+      LoRaSerial.print("s1: ");
+      LoRaSerial.print(phantramthuc);
     } else {
       Serial.println("Failed to read from DHT sensor!");
     }
@@ -103,6 +114,18 @@ void Led()
       else if(receivedData == "3")
       {
         digitalWrite(LED2, HIGH);
+        receivedData = "";
+
+      }
+      else if(receivedData == "4")
+      {
+        digitalWrite(LED3, LOW);
+        receivedData = "";
+
+      }
+      else if(receivedData == "5")
+      {
+        digitalWrite(LED3, HIGH);
         receivedData = "";
 
       }
