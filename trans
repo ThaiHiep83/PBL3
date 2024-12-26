@@ -10,6 +10,8 @@
 // Set Defalt Values
 #define DEFAULT_Temperature 0
 #define DEFAULT_Humidity 0
+#define DEFAULT_Soi 0
+
 //---------------------------------------------------
 const char *service_name = "GA";
 const char *pop = "0816153552";
@@ -17,19 +19,19 @@ const char *pop = "0816153552";
 // #define EEPROM_SIZE 3
 #define LORA_RX 4
 #define LORA_TX 5
-String nhot[4] = {"0","1","2","3"};
+String nhot[6] = {"0","1","2","3","4","5"};
 int n = 0;
 //---------------------------------------------------
 // define the Device Names
 char device1[] = "Switch1"; 
 char device2[] = "Switch2"; 
-// char device3[] = "Switch3";
+char device3[] = "Switch3";
 
 //---------------------------------------------------
 // define the GPIO connected with Relays and switches
 static uint8_t RELAY_1 = 6;
 static uint8_t RELAY_2 = 9;
-// static uint8_t RELAY_3 = 4;
+static uint8_t RELAY_3 = 10;
 // static uint8_t DHTPIN = 9;
 //---------------------------------------------------
 
@@ -43,6 +45,7 @@ SimpleTimer Timer;
 
 static TemperatureSensor temperature("Temperature");
 static TemperatureSensor humidity("Humidity");
+static TemperatureSensor soil("Soil");
 
 static uint8_t WIFI_LED    = 2;   //D2
 static uint8_t gpio_reset = 0;
@@ -51,7 +54,7 @@ static uint8_t gpio_reset = 0;
 // Relay State
 bool STATE_RELAY_1 = LOW; //Define integer to remember the toggle state for relay 1 
 bool STATE_RELAY_2 = LOW; //Define integer to remember the toggle state for relay 2 
-// bool STATE_RELAY_3 = LOW; //Define integer to remember the toggle state for relay 3 
+bool STATE_RELAY_3 = LOW; //Define integer to remember the toggle state for relay 3 
 
 
 //---------------------------------------------------
@@ -59,7 +62,7 @@ bool STATE_RELAY_2 = LOW; //Define integer to remember the toggle state for rela
 //like switch, lightbulb, fan, temperature sensor.
 static Switch my_switch1(device1, &RELAY_1);
 static Switch my_switch2(device2, &RELAY_2); 
-// static Switch my_switch3(device3, &RELAY_3); 
+static Switch my_switch3(device3, &RELAY_3); 
 
 
 //---------------------------------------------------
@@ -138,19 +141,26 @@ void write_callback(Device *device, Param *param, const param_val_t val, void *p
       }
     }
     //----------------------------------------------------------------------------------
-    // if(strcmp(device_name, device3) == 0) {
+    if(strcmp(device_name, device3) == 0) {
       
-    //   Serial.printf("Lightbulb3 = %s\n", val.val.b? "true" : "false");
+      Serial.printf("Lightbulb3 = %s\n", val.val.b? "true" : "false");
       
-    //   if(strcmp(param_name, "Power") == 0) {
-    //     //Serial.printf("Received value = %s for %s - %s\n", val.val.b? "true" : "false", device_name, param_name);
-    //     STATE_RELAY_3 = val.val.b;
-    //     STATE_RELAY_3 = !STATE_RELAY_3;
-    //     control_relay(3, RELAY_3, STATE_RELAY_3);
-    //     //(STATE_RELAY_1 == false) ? digitalWrite(RELAY_1, HIGH) : digitalWrite(RELAY_1, LOW);
-    //     //param->updateAndReport(val);
-    //   }
-    // }
+      if(strcmp(param_name, "Power") == 0) {
+        //Serial.printf("Received value = %s for %s - %s\n", val.val.b? "true" : "false", device_name, param_name);
+        STATE_RELAY_3 = val.val.b;
+        STATE_RELAY_3 = !STATE_RELAY_3;
+        control_relay(3, RELAY_3, STATE_RELAY_3);
+        if (STATE_RELAY_3 == false){
+          digitalWrite(RELAY_3, HIGH);
+          n = 4;
+        }
+        else {
+          digitalWrite(RELAY_3, LOW);
+          n = 5;
+        }
+        param->updateAndReport(val);
+      }
+    }
 }
 
  
@@ -173,7 +183,7 @@ void setup()
   // Set the Relays GPIOs as output mode
   pinMode(RELAY_1, OUTPUT);
   pinMode(RELAY_2, OUTPUT); 
-  // pinMode(RELAY_3, OUTPUT); 
+  pinMode(RELAY_3, OUTPUT); 
 
 
   //Beginning Sensor
@@ -189,7 +199,7 @@ void setup()
   // Write to the GPIOs the default state on booting
   digitalWrite(RELAY_1, !STATE_RELAY_1);
   digitalWrite(RELAY_2, !STATE_RELAY_2); 
-  // digitalWrite(RELAY_3, !STATE_RELAY_3); 
+  digitalWrite(RELAY_3, !STATE_RELAY_3); 
 
   //------------------------------------------------------------------------------
   Node my_node;    
@@ -198,15 +208,16 @@ void setup()
   //Standard switch device
   my_switch1.addCb(write_callback);
   my_switch2.addCb(write_callback); 
-  // my_switch3.addCb(write_callback); 
+  my_switch3.addCb(write_callback); 
 
   //------------------------------------------------------------------------------
   //Add switch device to the node   
   my_node.addDevice(my_switch1);
   my_node.addDevice(my_switch2);
-  // my_node.addDevice(my_switch3);
+  my_node.addDevice(my_switch3);
   my_node.addDevice(temperature);
   my_node.addDevice(humidity);
+  my_node.addDevice(soil);
   //------------------------------------------------------------------------------
   //This is optional 
   RMaker.setTimeZone("Asia/Ho_Chi_Minh");
@@ -243,16 +254,16 @@ void setup()
   
   digitalWrite(RELAY_1, STATE_RELAY_1);
   digitalWrite(RELAY_2, STATE_RELAY_2); 
-  // digitalWrite(RELAY_3, STATE_RELAY_3); 
+  digitalWrite(RELAY_3, STATE_RELAY_3); 
 
   
   my_switch1.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_1); 
   my_switch2.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_2); 
-  // my_switch3.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_3); 
+  my_switch3.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_3); 
 
   Serial.printf("Relay1 is %s \n", STATE_RELAY_1? "ON" : "OFF");
   Serial.printf("Relay2 is %s \n", STATE_RELAY_2? "ON" : "OFF"); 
-  // Serial.printf("Relay3 is %s \n", STATE_RELAY_3? "ON" : "OFF"); 
+  Serial.printf("Relay3 is %s \n", STATE_RELAY_3? "ON" : "OFF"); 
 
   // -----------------------------------------------------------------------------
 }
@@ -266,7 +277,8 @@ void loop()
   if (Timer.isReady() && wifi_connected) 
   {  // Check is ready a second timer
     Serial.println("Sending Sensor's Data");
-    // Send_Sensor();
+    Send_Sensor();
+    // Send_SensorSoil();
     Ledswitch(nhot,n);
 
     // delay(2000);
@@ -313,6 +325,21 @@ void loop()
 /****************************************************************************************************
  * Sensor DHT Function
 *****************************************************************************************************/
+// void Send_SensorSoil()
+// {
+//   if(LoRaSerial.available())
+//   {
+//     String receiveData_soil = LoRaSerial.readString();
+//     float s1 = 0.0;
+//     if (receiveData_soil.indexOf("s1: ") != -1) {
+//       int tStartIndex = receiveData_soil.indexOf("s1: ") + 4;
+//       s1 = receiveData_soil.substring(tStartIndex).toFloat();
+//     }
+//   Serial.print(s1);
+//   Serial.println(" %");
+//   soil.updateAndReportParam("Temperature", s1);
+//   }
+// }
 void Send_Sensor()
 {
   // Read message from LoRa
@@ -320,6 +347,7 @@ void Send_Sensor()
     String receivedData = LoRaSerial.readString() ;
     float t1 = 0.0;
     float h1 = 0.0;
+    float s1 = 0.0;
 
     if (receivedData.indexOf("t1: ") != -1) {
       int tStartIndex = receivedData.indexOf("t1: ") + 4;
@@ -329,13 +357,21 @@ void Send_Sensor()
       int tStartIndex = receivedData.indexOf("h1: ") + 4;
       h1 = receivedData.substring(tStartIndex).toFloat();
     }
+    if (receivedData.indexOf("s1: ") != -1) {
+      int tStartIndex = receivedData.indexOf("s1: ") + 4;
+      s1 = receivedData.substring(tStartIndex).toFloat();
+    }
   Serial.print("Nhiệt độ: ");
   Serial.print(t1);
   Serial.print(" °C | Độ ẩm không khí: ");
   Serial.print(h1);
   Serial.println(" %");
+  Serial.print("Độ ẩm đất: ");
+  Serial.print(s1);
+  Serial.println(" %");
   temperature.updateAndReportParam("Temperature", t1);
   humidity.updateAndReportParam("Temperature", h1);
+  soil.updateAndReportParam("Temperature", s1);
   }
 }
 void Ledswitch(String input[], int n)
@@ -345,7 +381,6 @@ void Ledswitch(String input[], int n)
     // String input = Serial.readString();
     LoRaSerial.println(input[n]);
   // }
-
 }
 /****************************************************************************************************
  * control_relay Function
