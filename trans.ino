@@ -4,7 +4,7 @@
 #include <DHT.h>
 #include <SimpleTimer.h>
 #include <wifi_provisioning/manager.h>
-// #include <EEPROM.h>
+#include <EEPROM.h>
 #include <SoftwareSerial.h>
 //---------------------------------------------------
 // Set Defalt Values
@@ -16,16 +16,16 @@
 const char *service_name = "GA";
 const char *pop = "0816153552";
 //---------------------------------------------------
-// #define EEPROM_SIZE 3
+#define EEPROM_SIZE 9
 #define LORA_RX 4
 #define LORA_TX 5
 String nhot[6] = {"0","1","2","3","4","5"};
 int n = 0;
 //---------------------------------------------------
 // define the Device Names
-char device1[] = "Switch1"; 
-char device2[] = "Switch2"; 
-char device3[] = "Switch3";
+char device1[] = "fan"; 
+char device2[] = "lamp"; 
+char device3[] = "pump";
 
 //---------------------------------------------------
 // define the GPIO connected with Relays and switches
@@ -38,8 +38,8 @@ static uint8_t RELAY_3 = 10;
 SoftwareSerial LoRaSerial(LORA_RX, LORA_TX);
 
 bool wifi_connected = 0;
-
-// DHT dht(DHTPIN, DHT11);
+bool isAlert_state = true;
+bool isAlertactive = false;
 
 SimpleTimer Timer;
 
@@ -60,9 +60,9 @@ bool STATE_RELAY_3 = LOW; //Define integer to remember the toggle state for rela
 //---------------------------------------------------
 //The framework provides some standard device types
 //like switch, lightbulb, fan, temperature sensor.
-static Switch my_switch1(device1, &RELAY_1);
-static Switch my_switch2(device2, &RELAY_2); 
-static Switch my_switch3(device3, &RELAY_3); 
+static Switch my_fan(device1, &RELAY_1);
+static Switch my_lamp(device2, &RELAY_2); 
+static Switch my_pump(device3, &RELAY_3); 
 
 
 //---------------------------------------------------
@@ -177,17 +177,13 @@ void setup()
   Serial.println("ESP32C3 and LoRa AS32 are Ready!");
    
   // initialize EEPROM with predefined size
-  // EEPROM.begin(EEPROM_SIZE);
+  EEPROM.begin(EEPROM_SIZE);
   
   //------------------------------------------------------------------------------
   // Set the Relays GPIOs as output mode
   pinMode(RELAY_1, OUTPUT);
   pinMode(RELAY_2, OUTPUT); 
   pinMode(RELAY_3, OUTPUT); 
-
-
-  //Beginning Sensor
-  // dht.begin();
   
   //------------------------------------------------------------------------------
    
@@ -203,18 +199,18 @@ void setup()
 
   //------------------------------------------------------------------------------
   Node my_node;    
-  my_node = RMaker.initNode("ThaiHiep");
+  my_node = RMaker.initNode("Cabbage garden");
   //------------------------------------------------------------------------------
   //Standard switch device
-  my_switch1.addCb(write_callback);
-  my_switch2.addCb(write_callback); 
-  my_switch3.addCb(write_callback); 
+  my_fan.addCb(write_callback);
+  my_lamp.addCb(write_callback); 
+  my_pump.addCb(write_callback); 
 
   //------------------------------------------------------------------------------
   //Add switch device to the node   
-  my_node.addDevice(my_switch1);
-  my_node.addDevice(my_switch2);
-  my_node.addDevice(my_switch3);
+  my_node.addDevice(my_fan);
+  my_node.addDevice(my_lamp);
+  my_node.addDevice(my_pump);
   my_node.addDevice(temperature);
   my_node.addDevice(humidity);
   my_node.addDevice(soil);
@@ -223,7 +219,6 @@ void setup()
   RMaker.setTimeZone("Asia/Ho_Chi_Minh");
   //If you want to enable scheduling, set time zone for your region using setTimeZone(). 
   //The list of available values are provided here https://rainmaker.espressif.com/docs/time-service.html
-  // RMaker.setTimeZone("Asia/Shanghai");
   // Alternatively, enable the Timezone service and let the phone apps set the appropriate timezone
   RMaker.enableTZService();
   RMaker.enableSchedule();
@@ -247,19 +242,15 @@ void setup()
     WiFiProv.beginProvision(WIFI_PROV_SCHEME_SOFTAP, WIFI_PROV_SCHEME_HANDLER_NONE, WIFI_PROV_SECURITY_1, pop, service_name);
   #endif
   // ------------------------------------------------------------------------------
-  // STATE_RELAY_1 = EEPROM.read(0);
-  // STATE_RELAY_2 = EEPROM.read(0); 
-  // STATE_RELAY_3 = EEPROM.read(0); 
-
   
   digitalWrite(RELAY_1, STATE_RELAY_1);
   digitalWrite(RELAY_2, STATE_RELAY_2); 
   digitalWrite(RELAY_3, STATE_RELAY_3); 
 
   
-  my_switch1.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_1); 
-  my_switch2.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_2); 
-  my_switch3.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_3); 
+  my_fan.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_1); 
+  my_lamp.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_2); 
+  my_pump.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, STATE_RELAY_3); 
 
   Serial.printf("Relay1 is %s \n", STATE_RELAY_1? "ON" : "OFF");
   Serial.printf("Relay2 is %s \n", STATE_RELAY_2? "ON" : "OFF"); 
@@ -278,10 +269,7 @@ void loop()
   {  // Check is ready a second timer
     Serial.println("Sending Sensor's Data");
     Send_Sensor();
-    // Send_SensorSoil();
     Ledswitch(nhot,n);
-
-    // delay(2000);
     Timer.reset();                        // Reset a second timer
   }
   //-----------------------------------------------------------  Logic to Reset RainMaker
@@ -293,20 +281,20 @@ void loop()
   //   int startTime = millis();
   //   while(digitalRead(gpio_reset) == LOW) delay(50);
   //   int endTime = millis();
-  //   //_______________________________________________________________________
-  //   if ((endTime - startTime) > 10000) {
-  //     // If key pressed for more than 10secs, reset all
-  //     Serial.printf("Reset to factory.\n");
-  //     wifi_connected = 0;
-  //     RMakerFactoryReset(2);
-  //   } 
-  //   //_______________________________________________________________________
-  //   else if ((endTime - startTime) > 3000) {
-  //     Serial.printf("Reset Wi-Fi.\n");
-  //     wifi_connected = 0;
-  //     // If key pressed for more than 3secs, but less than 10, reset Wi-Fi
-  //     RMakerWiFiReset(2);
-  //   }
+    //_______________________________________________________________________
+    // if ((endTime - startTime) > 10000) {
+    //   // If key pressed for more than 10secs, reset all
+    //   Serial.printf("Reset to factory.\n");
+    //   wifi_connected = 0;
+    //   RMakerFactoryReset(2);
+    // } 
+    // //_______________________________________________________________________
+    // else if ((endTime - startTime) > 3000) {
+    //   Serial.printf("Reset Wi-Fi.\n");
+    //   wifi_connected = 0;
+    //   // If key pressed for more than 3secs, but less than 10, reset Wi-Fi
+    //   RMakerWiFiReset(2);
+    // }
   // }
   delay(100);
   
@@ -319,27 +307,10 @@ void loop()
   //   digitalWrite(WIFI_LED, HIGH);
   // }
   // ------------------------------------------------------------------------------
-  //button_control();
-  //remote_control();
 }
 /****************************************************************************************************
  * Sensor DHT Function
 *****************************************************************************************************/
-// void Send_SensorSoil()
-// {
-//   if(LoRaSerial.available())
-//   {
-//     String receiveData_soil = LoRaSerial.readString();
-//     float s1 = 0.0;
-//     if (receiveData_soil.indexOf("s1: ") != -1) {
-//       int tStartIndex = receiveData_soil.indexOf("s1: ") + 4;
-//       s1 = receiveData_soil.substring(tStartIndex).toFloat();
-//     }
-//   Serial.print(s1);
-//   Serial.println(" %");
-//   soil.updateAndReportParam("Temperature", s1);
-//   }
-// }
 void Send_Sensor()
 {
   // Read message from LoRa
@@ -372,15 +343,27 @@ void Send_Sensor()
   temperature.updateAndReportParam("Temperature", t1);
   humidity.updateAndReportParam("Temperature", h1);
   soil.updateAndReportParam("Temperature", s1);
+      if (t1 > 26.0)
+      {
+        esp_rmaker_raise_alert("Temperature is too high!");
+      }
+      else if (t1 < 10.0)
+      {
+        esp_rmaker_raise_alert("Temperature is too low!");
+      }
+      else if(s1 > 70.0)
+      {
+        esp_rmaker_raise_alert("Humidity is too high!");
+      }
+      else if(s1 < 40.0)
+      {
+        esp_rmaker_raise_alert("Humidity is too low!");
+      }
   }
 }
 void Ledswitch(String input[], int n)
 {
-  // if(Serial.available())
-  // {
-    // String input = Serial.readString();
-    LoRaSerial.println(input[n]);
-  // }
+  LoRaSerial.println(input[n]);
 }
 /****************************************************************************************************
  * control_relay Function
@@ -388,9 +371,8 @@ void Ledswitch(String input[], int n)
 void control_relay(int relay_no, int relay_pin, boolean &status){
   status = !status;
   digitalWrite(relay_pin, status);
-  // EEPROM.write(relay_no-1, status);
-  // EEPROM.commit();
+  EEPROM.write(relay_no-1, status);
+  EEPROM.commit();
   String text = (status)? "ON" : "OFF";
   Serial.println("Relay"+String(relay_no)+" is "+text);
 }
- 
