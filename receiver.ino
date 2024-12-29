@@ -16,11 +16,8 @@ int LED3 = 14;
 SoftwareSerial LoRaSerial(LORA_RX, LORA_TX);
 
 // Định nghĩa các chân và kiểu cảm biến DHT
-#define DHTPIN 23         // Chân kết nối cảm biến DHT11
+#define DHTPIN 13         // Chân kết nối cảm biến DHT11
 #define DHTTYPE DHT11      // Sử dụng cảm biến DHT11
-
-// #define RELAY_PIN1 0  // định nghĩa rơ le điều khiển máy bơm
-// #define RELAY_PIN2 2  // định nghĩa rơ le điều khiển máy quạt
 
 DHT dht(DHTPIN, DHTTYPE);  // Khởi tạo đối tượng cảm biến DHT
 unsigned long previousMillis = 0;
@@ -33,11 +30,6 @@ void setup() {
   LoRaSerial.begin(9600);
 
   dht.begin();
-
-  // pinMode(RELAY_PIN1, OUTPUT);
-  // digitalWrite(RELAY_PIN1, LOW);  // Cấu hình rơ le ở mức cao
-  // pinMode(RELAY_PIN2, OUTPUT);
-  // digitalWrite(RELAY_PIN2, LOW);  // Cấu hình rơ le ở mức cao
 
   pinMode(LED, OUTPUT); 
 
@@ -81,7 +73,7 @@ void Readsensor_DHT() {
       Serial.println("Failed to read from DHT sensor!");
     }
   delay(3000);
-  } 
+  // } 
 }
 
 void Led()
